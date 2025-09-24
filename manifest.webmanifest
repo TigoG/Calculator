@@ -16,7 +16,7 @@
       "purpose": "any maskable"
     }
   ],
-  "start_url": "https://github.com/TigoG/Calculator",
+  "start_url": "https://github.com/TigoG/Calculator/",
   "scope": ".",
   "display": "standalone",
   "orientation": "portrait",
