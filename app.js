@@ -170,7 +170,7 @@
   });
 
   updateDisplay();
-
+  
   // Service Worker registration
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').then((reg) => {
@@ -179,13 +179,92 @@
       console.warn('Service Worker registration failed:', err);
     });
   }
-
-  // Handle PWA "beforeinstallprompt"
+  
+  // Install UI (beforeinstallprompt + iOS instructions)
   let deferredPrompt = null;
+  const installBtn = document.getElementById('installBtn');
+  const iosInstall = document.getElementById('ios-install');
+  const iosClose = iosInstall && iosInstall.querySelector('.ios-close');
+  
+  function isIos() {
+    return /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
+  }
+  
+  function isInStandaloneMode() {
+    return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || (window.navigator.standalone === true);
+  }
+  
+  function updateInstallUI() {
+    if (!installBtn) return;
+    if (isInStandaloneMode()) {
+      installBtn.hidden = true;
+      return;
+    }
+    if (deferredPrompt) {
+      installBtn.hidden = false;
+      installBtn.textContent = 'Install';
+    } else if (isIos()) {
+      // Show install button on iOS so users can view instructions
+      installBtn.hidden = false;
+      installBtn.textContent = 'Install (iOS)';
+    } else {
+      installBtn.hidden = true;
+    }
+  }
+  
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
     console.log('beforeinstallprompt fired - you can call deferredPrompt.prompt() to show install');
+    updateInstallUI();
   });
-
+  
+  // Click handler for the install button
+  if (installBtn) {
+    installBtn.addEventListener('click', async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        try {
+          const choice = await deferredPrompt.userChoice;
+          console.log('PWA install choice:', choice.outcome);
+        } catch (err) {
+          console.warn('Install prompt failed:', err);
+        } finally {
+          deferredPrompt = null;
+          updateInstallUI();
+        }
+      } else if (isIos()) {
+        if (iosInstall) iosInstall.hidden = false;
+      } else {
+        console.log('Install prompt not available');
+      }
+    });
+  }
+  
+  // Close handler for iOS overlay
+  if (iosClose) {
+    iosClose.addEventListener('click', () => {
+      if (iosInstall) iosInstall.hidden = true;
+    });
+  }
+  
+  // close overlay when tapping outside or pressing Escape
+  if (iosInstall) {
+    iosInstall.addEventListener('click', (e) => {
+      if (e.target === iosInstall) iosInstall.hidden = true;
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') iosInstall.hidden = true;
+    });
+  }
+  
+  window.addEventListener('appinstalled', () => {
+    console.log('App installed');
+    deferredPrompt = null;
+    updateInstallUI();
+  });
+  
+  // initial UI state
+  updateInstallUI();
+  
 })();
